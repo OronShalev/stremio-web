@@ -49,8 +49,8 @@ services:
     # files from http://127.0.0.1:11471 and, when it needs to transcode, the
     # streaming server fetches the same URL - which must reach this service.
     network_mode: "service:stremio-server"
-    # Run as the same user as qBittorrent so it can write into the folders this service creates
-    user: "${PUID:-1000}:${PGID:-1000}"
+    # Same user as qBittorrent, so each can manage the other's files (see PUID in .env)
+    user: "${PUID:-0}:${PGID:-0}"
     environment:
       DOWNLOADS_DIR: /downloads
       DOWNLOADS_HOST_DIR: ${DOWNLOADS_HOST_DIR}
@@ -69,8 +69,8 @@ services:
     image: lscr.io/linuxserver/qbittorrent:latest
     restart: unless-stopped
     environment:
-      PUID: ${PUID:-1000}
-      PGID: ${PGID:-1000}
+      PUID: ${PUID:-0}
+      PGID: ${PGID:-0}
       TZ: ${TZ:-Etc/UTC}
       WEBUI_PORT: "8090"
       TORRENTING_PORT: "6881"

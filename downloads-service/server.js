@@ -1029,6 +1029,12 @@ const route = async (req, res) => {
 const server = http.createServer((req, res) => {
     setCors(req, res);
     route(req, res).catch((error) => {
+        if (error.code === 'EACCES' || error.code === 'EPERM') {
+            error.message = `Permission denied on ${error.path || 'the downloads folder'}. ` +
+                'The downloads service and qBittorrent must be able to write to the downloads folder ' +
+                '(Docker on Windows: set PUID=0 and PGID=0 in .env), and no other program may have the file open.';
+            error.status = 500;
+        }
         const status = error.status && error.status >= 400 && error.status < 600 ? error.status : 500;
         if (status >= 500) log(`${req.method} ${req.url} failed:`, error.message);
         if (!res.headersSent) sendJson(res, status, { error: error.message });
