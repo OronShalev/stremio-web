@@ -780,7 +780,10 @@ const revealDownload = (item) => {
     const target = item.filePath || item.folder;
     let child;
     if (process.platform === 'win32') {
-        child = spawn('explorer.exe', item.filePath ? [`/select,${target}`] : [target], { detached: true, stdio: 'ignore' });
+        // Explorer only understands `/select,"C:\path with spaces\file"` - Node's default
+        // quoting wraps the whole argument and Explorer falls back to opening Documents.
+        const args = item.filePath ? `/select,"${path.win32.normalize(target)}"` : `"${path.win32.normalize(target)}"`;
+        child = spawn('explorer.exe', [args], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true });
     } else if (process.platform === 'darwin') {
         child = spawn('open', item.filePath ? ['-R', target] : [target], { detached: true, stdio: 'ignore' });
     } else {
