@@ -49,6 +49,8 @@ services:
     # files from http://127.0.0.1:11471 and, when it needs to transcode, the
     # streaming server fetches the same URL - which must reach this service.
     network_mode: "service:stremio-server"
+    # Run as the same user as qBittorrent so it can write into the folders this service creates
+    user: "${PUID:-1000}:${PGID:-1000}"
     environment:
       DOWNLOADS_DIR: /downloads
       DOWNLOADS_HOST_DIR: ${DOWNLOADS_HOST_DIR}
