@@ -21,6 +21,10 @@ const routesRegexp = {
         regexp: /^\/calendar(?:\/([^/]*)\/([^/]*))?$/,
         urlParamsNames: ['year', 'month']
     },
+    downloads: {
+        regexp: /^\/downloads(?:\/([^/]*))?$/,
+        urlParamsNames: ['filter']
+    },
     continuewatching: {
         regexp: /^\/continuewatching(?:\/([^/]*))?$/,
         urlParamsNames: ['type']

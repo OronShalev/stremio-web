@@ -17,7 +17,7 @@ const { default: SeasonEpisodePicker } = require('../EpisodePicker');
 
 const ALL_ADDONS_KEY = 'ALL';
 
-const StreamsList = ({ className, video, type, externalPlayerCallbackCanMarkWatched, onEpisodeSearch, ...props }) => {
+const StreamsList = ({ className, video, type, downloadContext = null, externalPlayerCallbackCanMarkWatched, onEpisodeSearch, ...props }) => {
     const { t } = useTranslation();
     const core = useCore();
     const platform = usePlatform();
@@ -72,7 +72,8 @@ const StreamsList = ({ className, video, type, externalPlayerCallbackCanMarkWatc
                                 });
                             }
                         },
-                        addonName: streams.addon.manifest.name
+                        addonName: streams.addon.manifest.name,
+                        addonTransportUrl: streams.addon.transportUrl
                     }))
                 };
 
@@ -194,6 +195,8 @@ const StreamsList = ({ className, video, type, externalPlayerCallbackCanMarkWatc
                                             progress={stream.progress}
                                             deepLinks={stream.deepLinks}
                                             externalPlayerCallbackCanMarkWatched={externalPlayerCallbackCanMarkWatched}
+                                            downloadStream={stream}
+                                            downloadContext={downloadContext}
                                             onClick={stream.onClick}
                                         />
                                     ))}
@@ -229,6 +232,7 @@ StreamsList.propTypes = {
     streams: PropTypes.arrayOf(PropTypes.object).isRequired,
     video: PropTypes.object,
     type: PropTypes.string,
+    downloadContext: PropTypes.object,
     externalPlayerCallbackCanMarkWatched: PropTypes.bool,
     onEpisodeSearch: PropTypes.func
 };

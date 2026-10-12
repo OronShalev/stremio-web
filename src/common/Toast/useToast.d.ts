@@ -1,6 +1,7 @@
 type ToastOptions = {
     type: string,
     title: string,
+    message?: string,
     timeout: number,
 };
 

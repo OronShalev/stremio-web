@@ -11,6 +11,7 @@ const TABS = [
     { id: 'discover', label: 'Discover', icon: 'discover', href: '/discover' },
     { id: 'library', label: 'Library', icon: 'library', href: '/library' },
     { id: 'calendar', label: 'Calendar', icon: 'calendar', href: '/calendar' },
+    { id: 'downloads', label: 'Downloads', icon: 'download', outlineIcon: 'download', href: '/downloads' },
     { id: 'addons', label: 'ADDONS', icon: 'addons', href: '/addons' },
     { id: 'settings', label: 'SETTINGS', icon: 'settings', href: '/settings' },
 ];

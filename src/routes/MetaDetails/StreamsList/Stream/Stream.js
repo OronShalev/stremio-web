@@ -10,15 +10,19 @@ const { useProfile, usePlatform, useToast, useBinaryState } = require('stremio/c
 const { Button, Image, Popup } = require('stremio/components');
 const ActionButton = require('stremio/components/MetaPreview/ActionButton');
 const { default: useRouteFocused } = require('stremio/common/useRouteFocused');
+const { useStreamDownload } = require('stremio/common/Downloads');
+const { default: DownloadButton } = require('./DownloadButton');
 const StreamPlaceholder = require('./StreamPlaceholder');
 const styles = require('./styles');
 
-const Stream = ({ className = '', compact = false, isEpg = false, videoId = undefined, videoReleased = undefined, addonName, name, description, thumbnail = undefined, progress, deepLinks, externalPlayerCallbackCanMarkWatched, ...props }) => {
+const Stream = ({ className = '', compact = false, isEpg = false, videoId = undefined, videoReleased = undefined, addonName, name, description, thumbnail = undefined, progress, deepLinks, externalPlayerCallbackCanMarkWatched, downloadStream = null, downloadContext = null, ...props }) => {
     const profile = useProfile();
     const toast = useToast();
     const platform = usePlatform();
     const core = useCore();
     const routeFocused = useRouteFocused();
+    const streamDownload = useStreamDownload(isEpg ? null : downloadStream, downloadContext);
+    const startDownload = streamDownload.start;
 
     const [menuOpen, openMenu, closeMenu, toggleMenu] = useBinaryState(false);
 
@@ -202,6 +206,12 @@ const Stream = ({ className = '', compact = false, isEpg = false, videoId = unde
         }
     }, [streamLink]);
 
+    const downloadFromMenu = React.useCallback((event) => {
+        event.preventDefault();
+        closeMenu();
+        startDownload();
+    }, [closeMenu, startDownload]);
+
     const renderThumbnailFallback = React.useCallback(() => (
         <Icon className={styles['placeholder-icon']} name={'ic_broken_link'} />
     ), []);
@@ -242,11 +252,21 @@ const Stream = ({ className = '', compact = false, isEpg = false, videoId = unde
                     }
                 </div>
                 <div className={styles['description-container']} title={description}>{description}</div>
+                {
+                    streamDownload.available ?
+                        <DownloadButton
+                            item={streamDownload.item}
+                            starting={streamDownload.starting}
+                            onStart={streamDownload.start}
+                        />
+                        :
+                        null
+                }
                 <Icon className={styles['icon']} name={'play'} />
                 {children}
             </Button>
         );
-    }, [compact, thumbnail, progress, addonName, name, description, href, target, download, onClick, menuOpen]);
+    }, [compact, thumbnail, progress, addonName, name, description, href, target, download, onClick, menuOpen, streamDownload.available, streamDownload.item, streamDownload.starting, streamDownload.start]);
 
     const renderMenu = React.useMemo(() => function renderMenu() {
         return (
@@ -258,6 +278,13 @@ const Stream = ({ className = '', compact = false, isEpg = false, videoId = unde
                     <Icon className={styles['menu-icon']} name={'play'} />
                     <div className={styles['context-menu-option-label']}>{t('CTX_PLAY')}</div>
                 </Button>
+                {
+                    streamDownload.available && streamDownload.item === null &&
+                        <Button className={styles['context-menu-option-container']} title={'Download'} onClick={downloadFromMenu}>
+                            <Icon className={styles['menu-icon']} name={'download'} />
+                            <div className={styles['context-menu-option-label']}>{'Download'}</div>
+                        </Button>
+                }
                 {
                     streamLink &&
                         <Button className={styles['context-menu-option-container']} title={t('CTX_COPY_STREAM_LINK')} onClick={copyStreamLink}>
@@ -281,7 +308,7 @@ const Stream = ({ className = '', compact = false, isEpg = false, videoId = unde
                 }
             </div>
         );
-    }, [copyStreamLink, onClick, isEpg, href, target, download]);
+    }, [copyStreamLink, onClick, isEpg, href, target, download, streamDownload.available, streamDownload.item, downloadFromMenu]);
 
     React.useEffect(() => {
         if (!routeFocused) {
@@ -337,6 +364,8 @@ Stream.propTypes = {
         })
     }),
     externalPlayerCallbackCanMarkWatched: PropTypes.bool,
+    downloadStream: PropTypes.object,
+    downloadContext: PropTypes.object,
     onClick: PropTypes.func
 };
 

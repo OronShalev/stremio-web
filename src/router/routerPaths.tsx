@@ -26,6 +26,11 @@ export default [
         element: <routes.Calendar />,
     },
     {
+        path: '/downloads/:filter?',
+        view: 1,
+        element: <routes.Downloads />,
+    },
+    {
         path: '/continuewatching/:type?',
         view: 1,
         element: <routes.Library />,

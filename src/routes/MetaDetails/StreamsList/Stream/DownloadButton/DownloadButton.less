@@ -1,0 +1,116 @@
+// Copyright (C) 2017-2026 Smart code 203358507
+
+.download-button {
+    flex: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    color: var(--primary-foreground-color);
+    background-color: var(--overlay-color);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.1s ease-out, background-color 0.1s ease-out;
+
+    &:hover,
+    &:focus {
+        opacity: 1;
+        background-color: var(--secondary-accent-color);
+    }
+
+    &:focus {
+        outline: var(--focus-outline-size) solid var(--primary-foreground-color);
+        outline-offset: calc(-1 * var(--focus-outline-size));
+    }
+
+    .icon {
+        width: 1.6rem;
+        height: 1.6rem;
+        color: var(--primary-foreground-color);
+    }
+
+    .ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+
+        &.spinning {
+            animation: download-ring-spin 1s linear infinite;
+        }
+
+        .ring-track {
+            fill: none;
+            stroke: var(--primary-foreground-color);
+            stroke-opacity: 0.15;
+            stroke-width: 3;
+        }
+
+        .ring-progress {
+            fill: none;
+            stroke: var(--primary-accent-color);
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.4s ease-out;
+        }
+    }
+
+    .percent {
+        position: relative;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--primary-foreground-color);
+        white-space: nowrap;
+    }
+
+    &.active,
+    &.completed,
+    &.error {
+        opacity: 1;
+    }
+
+    &.active {
+        background-color: transparent;
+
+        &:hover,
+        &:focus {
+            background-color: var(--overlay-color);
+        }
+    }
+
+    &.paused {
+        .ring .ring-progress {
+            stroke: var(--primary-foreground-color);
+            stroke-opacity: 0.6;
+        }
+    }
+
+    &.completed {
+        background-color: var(--primary-accent-color);
+
+        &:hover,
+        &:focus {
+            background-color: var(--primary-accent-color);
+        }
+    }
+
+    &.error {
+        .ring .ring-progress {
+            stroke: var(--danger-accent-color);
+        }
+    }
+}
+
+@keyframes download-ring-spin {
+    from {
+        transform: rotate(-90deg);
+    }
+
+    to {
+        transform: rotate(270deg);
+    }
+}

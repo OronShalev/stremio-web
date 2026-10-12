@@ -1,0 +1,8 @@
+{
+    "port": 11471,
+    "downloadsDir": "",
+    "qbittorrentUrl": "http://localhost:8090",
+    "qbittorrentUsername": "",
+    "qbittorrentPassword": "",
+    "allowedOrigins": ""
+}

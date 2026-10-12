@@ -11,7 +11,7 @@
             {
                 "name": "navigateTabs",
                 "label": "SETTINGS_SHORTCUT_NAVIGATE_MENUS",
-                "combos": [["1", "2", "3", "4", "5", "6"]]
+                "combos": [["1", "2", "3", "4", "5", "6", "7"]]
             },
             {
                 "name": "navigateSearch",

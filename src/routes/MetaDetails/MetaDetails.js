@@ -62,6 +62,29 @@ const MetaDetails = () => {
             :
             null;
     }, [metaDetails.metaItem, streamPath]);
+    const downloadContext = React.useMemo(() => {
+        if (streamPath === null || readyMeta === null) {
+            return null;
+        }
+
+        return {
+            meta: {
+                type: readyMeta.type ?? streamPath.type ?? null,
+                id: readyMeta.id ?? null,
+                name: readyMeta.name ?? null,
+                poster: readyMeta.poster ?? null,
+                background: readyMeta.background ?? null,
+                logo: readyMeta.logo ?? null,
+                metaTransportUrl: metaAddonUrl ?? null,
+            },
+            video: {
+                id: streamPath.id ?? null,
+                season: typeof video?.season === 'number' ? video.season : null,
+                episode: typeof video?.episode === 'number' ? video.episode : null,
+                title: typeof video?.title === 'string' && video.title.length > 0 ? video.title : null,
+            },
+        };
+    }, [streamPath, readyMeta, metaAddonUrl, video]);
     const externalPlayerCallbackCanMarkWatched = React.useMemo(() => {
         return typeof video?.id === 'string' &&
             metaDetails.libraryItem?.state?.video_id === video.id &&
@@ -253,6 +276,7 @@ const MetaDetails = () => {
                             streams={metaDetails.streams}
                             video={video}
                             type={streamPath.type}
+                            downloadContext={downloadContext}
                             externalPlayerCallbackCanMarkWatched={externalPlayerCallbackCanMarkWatched}
                             onEpisodeSearch={handleEpisodeSearch}
                         />

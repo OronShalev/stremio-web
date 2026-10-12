@@ -5,6 +5,7 @@ const Board = require('./Board');
 const Discover = require('./Discover');
 const Library = require('./Library');
 const Calendar = require('./Calendar').default;
+const Downloads = require('./Downloads').default;
 const MetaDetails = require('./MetaDetails');
 const NotFound = require('./NotFound');
 const Search = require('./Search');
@@ -18,6 +19,7 @@ module.exports = {
     Discover,
     Library,
     Calendar,
+    Downloads,
     MetaDetails,
     NotFound,
     Search,
