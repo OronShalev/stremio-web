@@ -41,6 +41,33 @@ Each torrent folder contains a `stremio-download.json` describing what it is (ti
 
 Only the file Stremio would play is downloaded. For season packs, the other files are set to "do not download" in qBittorrent. Downloading another episode from the same pack reuses the same torrent and folder.
 
+## Running everything with Docker
+
+`docker-compose.yml` in the repo root runs the whole stack: the web UI, the Stremio streaming server, this service and qBittorrent.
+
+```
+cp .env.example .env          # set DOWNLOADS_HOST_DIR (your downloads folder)
+docker compose up -d --build
+```
+
+Then open **http://localhost:8080**. Stop the locally installed Stremio Service and qBittorrent first, because the containers use the same ports.
+
+| Service            | Image                                  | Port(s) on your computer         |
+|--------------------|----------------------------------------|----------------------------------|
+| `web`              | built from this repo                   | `8080`                           |
+| `stremio-server`   | `stremio/server`                       | `11470`, `12470`                 |
+| `downloads-service`| built from `downloads-service/`        | `11471`                          |
+| `qbittorrent`      | `lscr.io/linuxserver/qbittorrent`      | `8090` (Web UI), `6881` (peers)  |
+
+Notes:
+
+* qBittorrent and this service both mount `DOWNLOADS_HOST_DIR` at `/downloads`, so the save paths match.
+* On its first start, qBittorrent gets `docker/qbittorrent/qBittorrent.conf`. This sets the Web UI to port 8090, saves to `/downloads`, turns off queueing, and skips the login for the compose network. To start over, run `docker compose down -v`, which also deletes the qBittorrent settings and the streaming server cache.
+* The streaming server runs with `NO_CORS=1`, so the web UI can talk to it with no CORS errors in the console.
+* The downloads service shares the streaming server's network. Downloaded files are played from `http://127.0.0.1:11471`, and the streaming server can fetch the same address when it needs to transcode.
+* **Show in folder** isn't available in Docker, because a container can't open Explorer. Instead the button shows where the file is on your computer.
+* All ports except the torrent port 6881 are published on `127.0.0.1` only.
+
 ## Configuration
 
 Set environment variables, or copy `config.example.json` to `config.json` and edit it:
@@ -53,6 +80,7 @@ Set environment variables, or copy `config.example.json` to `config.json` and ed
 | `qbittorrentUrl`       | `QBITTORRENT_URL`        | `http://localhost:8090`                  |
 | `qbittorrentUsername`  | `QBITTORRENT_USERNAME`   | *(empty – relies on localhost bypass)*   |
 | `qbittorrentPassword`  | `QBITTORRENT_PASSWORD`   | *(empty)*                                |
+| `downloadsHostDir`     | `DOWNLOADS_HOST_DIR`     | *(Docker only: the folder on the host)*  |
 | `allowedOrigins`       | `ALLOWED_ORIGINS`        | any `localhost` / `127.0.0.1` origin     |
 
 If you change the port, tell the web UI where to find the service (browser dev tools console):

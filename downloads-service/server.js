@@ -19,6 +19,8 @@
 //   QBITTORRENT_URL          default http://localhost:8090
 //   QBITTORRENT_USERNAME     optional (needed unless "bypass auth for localhost" is enabled)
 //   QBITTORRENT_PASSWORD     optional
+//   DOWNLOADS_HOST_DIR       optional, when running in Docker: where the downloads folder is on the
+//                            host (shown in the UI; "Show in folder" is not available in Docker)
 //   ALLOWED_ORIGINS          optional, comma separated extra origins allowed to use the API
 //                            (any http(s)://localhost|127.0.0.1|[::1] origin is always allowed)
 
@@ -63,6 +65,7 @@ const CONFIG = {
         .split(',')
         .map((origin) => origin.trim().replace(/\/+$/, ''))
         .filter((origin) => origin.length > 0),
+    downloadsHostDir: cfg('DOWNLOADS_HOST_DIR', 'downloadsHostDir', ''),
     category: 'Stremio',
     tag: 'stremio',
 };
@@ -798,7 +801,20 @@ const openExplorer = (argument) => {
     child.unref();
 };
 
+// Path of a file as the user sees it on the host (differs from ours when running in Docker)
+const toHostPath = (target) => {
+    if (!CONFIG.downloadsHostDir) return target;
+    const relative = path.relative(CONFIG.downloadsDir, target);
+    const separator = /^[a-z]:[\\/]/i.test(CONFIG.downloadsHostDir) ? '\\' : '/';
+    const base = CONFIG.downloadsHostDir.replace(/[\\/]+$/, '').replace(/[\\/]/g, separator);
+    return [base, ...relative.split(path.sep).filter(Boolean)].join(separator);
+};
+
 const revealDownload = async (item) => {
+    if (CONFIG.downloadsHostDir) {
+        // Running in a container: there is no desktop to open a folder on
+        throw Object.assign(new Error(`Not available in Docker - the file is in ${toHostPath(item.folder)}`), { status: 501 });
+    }
     const target = item.filePath || item.folder;
     if (process.platform === 'win32') {
         const filePath = item.filePath ? path.win32.normalize(item.filePath) : null;
@@ -946,7 +962,7 @@ const route = async (req, res) => {
             qbt.version = null;
             qbittorrent = { online: false, error: error.message, url: CONFIG.qbtUrl };
         }
-        return sendJson(res, 200, { ok: true, downloadsDir: CONFIG.downloadsDir, qbittorrent });
+        return sendJson(res, 200, { ok: true, downloadsDir: CONFIG.downloadsHostDir || CONFIG.downloadsDir, qbittorrent });
     }
 
     // GET /api/downloads
@@ -962,7 +978,7 @@ const route = async (req, res) => {
             // ignore
         }
         return sendJson(res, 200, {
-            downloadsDir: CONFIG.downloadsDir,
+            downloadsDir: CONFIG.downloadsHostDir || CONFIG.downloadsDir,
             qbittorrent: { online: qbtOnline, url: CONFIG.qbtUrl, error: qbtOnline ? null : qbt.lastError },
             freeSpace,
             items,
