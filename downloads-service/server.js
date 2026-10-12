@@ -31,7 +31,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 
 // ---------------------------------------------------------------------------
 // Config
@@ -293,7 +293,9 @@ const qbt = {
                 firstLastPiecePrio: 'true',
                 paused: 'false',
                 stopped: 'false',
-                contentLayout: 'Original',
+                // The files already live in a dedicated <infoHash> folder - skip the torrent's
+                // own root folder to keep paths short (Windows tools struggle with 260+ chars)
+                contentLayout: 'NoSubfolder',
             },
         });
     },
@@ -776,19 +778,51 @@ const deleteDownload = async (item) => {
     log(`download deleted ${item.id}`);
 };
 
-const revealDownload = (item) => {
+// Explorer can't open or select paths of 260+ characters (MAX_PATH)
+const WINDOWS_MAX_PATH = 259;
+
+// The 8.3 short form of a long Windows path (e.g. C:\Users\orons\AppData\Stremio\DOWNLO~1\...).
+// Resolves null when short names are disabled on the drive or anything fails.
+const getWindowsShortPath = (target) => new Promise((resolve) => {
+    execFile('cmd.exe', ['/d /s /c "for %I in ("' + target + '") do @echo %~sI"'], { windowsVerbatimArguments: true, timeout: 5000 }, (error, stdout) => {
+        const shortPath = error ? '' : String(stdout).trim();
+        resolve(shortPath.length > 0 && shortPath.length < target.length && /^[a-z]:\\/i.test(shortPath) ? shortPath : null);
+    });
+});
+
+const openExplorer = (argument) => {
+    // Explorer only understands `/select,"C:\path with spaces\file"` - Node's default
+    // quoting wraps the whole argument and Explorer falls back to opening Documents.
+    const child = spawn('explorer.exe', [argument], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true });
+    child.on('error', () => {});
+    child.unref();
+};
+
+const revealDownload = async (item) => {
     const target = item.filePath || item.folder;
-    let child;
     if (process.platform === 'win32') {
-        // Explorer only understands `/select,"C:\path with spaces\file"` - Node's default
-        // quoting wraps the whole argument and Explorer falls back to opening Documents.
-        const args = item.filePath ? `/select,"${path.win32.normalize(target)}"` : `"${path.win32.normalize(target)}"`;
-        child = spawn('explorer.exe', [args], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true });
-    } else if (process.platform === 'darwin') {
-        child = spawn('open', item.filePath ? ['-R', target] : [target], { detached: true, stdio: 'ignore' });
-    } else {
-        child = spawn('xdg-open', [item.folder], { detached: true, stdio: 'ignore' });
+        const filePath = item.filePath ? path.win32.normalize(item.filePath) : null;
+        if (filePath !== null) {
+            if (filePath.length <= WINDOWS_MAX_PATH) {
+                openExplorer(`/select,"${filePath}"`);
+                return;
+            }
+            const shortPath = await getWindowsShortPath(filePath);
+            if (shortPath !== null && shortPath.length <= WINDOWS_MAX_PATH) {
+                openExplorer(`/select,"${shortPath}"`);
+                return;
+            }
+        }
+        // Path too long to select the file: open the folder that contains it instead
+        const folder = path.win32.normalize(filePath !== null ? path.dirname(filePath) : item.folder);
+        const shortFolder = folder.length > WINDOWS_MAX_PATH ? await getWindowsShortPath(folder) : null;
+        openExplorer(`"${shortFolder || (folder.length <= WINDOWS_MAX_PATH ? folder : path.win32.normalize(item.folder))}"`);
+        return;
     }
+    const child = process.platform === 'darwin' ?
+        spawn('open', item.filePath ? ['-R', target] : [target], { detached: true, stdio: 'ignore' })
+        :
+        spawn('xdg-open', [item.folder], { detached: true, stdio: 'ignore' });
     child.on('error', () => {});
     child.unref();
 };
@@ -961,7 +995,7 @@ const route = async (req, res) => {
             return sendJson(res, 200, { ok: true });
         }
         if (req.method === 'POST' && action === 'reveal') {
-            revealDownload(item);
+            await revealDownload(item);
             return sendJson(res, 200, { ok: true });
         }
     }
