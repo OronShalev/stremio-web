@@ -13,6 +13,44 @@ const OFFLINE_INTERVAL = 15000;
 
 const ACTIVE_STATUSES = new Set(['metadata', 'downloading', 'stalled', 'queued', 'checking']);
 
+// qBittorrent applies pause / resume asynchronously, so a refresh right after the
+// click can still report the old state. Keep the requested state (per torrent)
+// until qBittorrent confirms it, or until the timeout expires.
+const PENDING_TIMEOUT = 15000;
+type PendingChange = { status: 'paused' | 'downloading', until: number };
+const pending = new Map<string, PendingChange>();
+
+const isConfirmed = (change: PendingChange, item: DownloadItem) => {
+    return change.status === 'paused' ? item.status === 'paused' : item.status !== 'paused';
+};
+
+const applyPending = (items: DownloadItem[]): DownloadItem[] => {
+    const now = Date.now();
+    pending.forEach((change, infoHash) => {
+        const torrentItems = items.filter((item) => item.infoHash === infoHash && item.status !== 'completed');
+        if (now > change.until || torrentItems.length === 0 || torrentItems.every((item) => isConfirmed(change, item))) {
+            pending.delete(infoHash);
+        }
+    });
+
+    return items.map((item) => {
+        const change = pending.get(item.infoHash);
+        return change && item.status !== 'completed' && !isConfirmed(change, item) ? { ...item, status: change.status } : item;
+    });
+};
+
+const setPending = (id: string, status: PendingChange['status']) => {
+    const target = state.items.find((item) => item.id === id);
+    if (!target) return null;
+    pending.set(target.infoHash, { status, until: Date.now() + PENDING_TIMEOUT });
+    setState({ items: applyPending(state.items) });
+    return target.infoHash;
+};
+
+const clearPending = (infoHash: string | null) => {
+    if (infoHash !== null) pending.delete(infoHash);
+};
+
 let state: DownloadsState = {
     status: 'idle',
     items: [],
@@ -33,6 +71,7 @@ const setState = (next: Partial<DownloadsState>) => {
 
 const nextInterval = () => {
     if (state.status === 'offline') return OFFLINE_INTERVAL;
+    if (pending.size > 0) return ACTIVE_INTERVAL;
     return state.items.some((item) => ACTIVE_STATUSES.has(item.status)) ? ACTIVE_INTERVAL : IDLE_INTERVAL;
 };
 
@@ -56,7 +95,7 @@ export const refresh = (): Promise<void> => {
         .then((response) => {
             setState({
                 status: 'ready',
-                items: response.items,
+                items: applyPending(response.items),
                 downloadsDir: response.downloadsDir,
                 freeSpace: response.freeSpace,
                 qbittorrent: {
@@ -116,12 +155,18 @@ const withRefresh = async <T>(promise: Promise<T>): Promise<T> => {
 export const actions = {
     add: (request: AddDownloadRequest) => withRefresh(api.addDownload(request)),
     pause: (id: string) => {
-        setState({ items: state.items.map((item) => item.id === id && item.status !== 'completed' ? { ...item, status: 'paused' } : item) });
-        return withRefresh(api.pauseDownload(id));
+        const infoHash = setPending(id, 'paused');
+        return withRefresh(api.pauseDownload(id).catch((error) => {
+            clearPending(infoHash);
+            throw error;
+        }));
     },
     resume: (id: string) => {
-        setState({ items: state.items.map((item) => item.id === id && item.status !== 'completed' ? { ...item, status: 'downloading' } : item) });
-        return withRefresh(api.resumeDownload(id));
+        const infoHash = setPending(id, 'downloading');
+        return withRefresh(api.resumeDownload(id).catch((error) => {
+            clearPending(infoHash);
+            throw error;
+        }));
     },
     remove: (id: string) => {
         setState({ items: state.items.filter((item: DownloadItem) => item.id !== id) });

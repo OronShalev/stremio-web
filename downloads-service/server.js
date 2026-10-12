@@ -710,14 +710,29 @@ const watchForMetadata = (dir, infoHash) => {
     })();
 };
 
+const STOPPED_STATE = /^(paused|stopped)(DL|UP)$/;
+
+// qBittorrent applies stop / start asynchronously - wait (briefly) until its
+// reported state reflects the change so the UI gets the new state right away
+const waitForState = async (hash, predicate, timeout = 4000) => {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+        const [torrent] = await qbt.torrents([hash]).catch(() => []);
+        if (!torrent || predicate(torrent.state)) return;
+        await sleep(200);
+    }
+};
+
 const pauseDownload = async (item) => {
     await qbt.stop(item.infoHash);
+    await waitForState(item.infoHash, (state) => STOPPED_STATE.test(state));
 };
 
 const resumeDownload = async (item) => {
     const [torrent] = await qbt.torrents([item.infoHash]);
     if (torrent) {
         await qbt.start(item.infoHash);
+        await waitForState(item.infoHash, (state) => !STOPPED_STATE.test(state));
         return;
     }
     // Torrent was removed from qBittorrent but files are still on disk: re-add it,
